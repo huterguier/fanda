@@ -1,1 +1,1 @@
-# Figures and Axes (FandA)
+# Figures and Axes
