@@ -24,6 +24,7 @@ def fetch_history(
         if not history_data:
             continue
         df = pd.DataFrame.from_records(history_data)
+        df["run_id"] = run.id
         histories.append(df)
     histories = pd.concat(histories)
     histories.reset_index(drop=True, inplace=True)

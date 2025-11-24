@@ -1,6 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from matplotlib import ticker
 from matplotlib import rcParams
 from matplotlib import rc
 import seaborn as sns
@@ -14,44 +15,7 @@ rcParams["ps.fonttype"] = 42
 rc("text", usetex=False)
 
 
-def plot_learning_curves(
-    df: pd.DataFrame,
-    x: str,
-    y: str,
-    figsize=(7, 5),
-    **kwargs,
-):
-
-    fig, ax = plt.subplots(figsize=figsize)
-    ax = sns.lineplot(
-        data=df,
-        x=x,
-        y=y,
-        ax=ax,
-        **kwargs,
-    )
-    return fig, ax
-
-
-def plot_interval_estimates(
-    df: pd.DataFrame,
-    x: str,
-    y: str,
-    figsize=(7, 3),
-    **kwargs,
-):
-    fig, ax = plt.subplots(figsize=figsize)
-    ax = sns.pointplot(
-        data=df,
-        x=x,
-        y=y,
-        ax=ax,
-        **kwargs,
-    )
-    return fig, ax
-
-
-def _decorate_axis(ax, wrect=10, hrect=10, ticklabelsize="large"):
+def decorate_axis(ax, wrect=10, hrect=10, ticklabelsize="large"):
     """Helper function for decorating plots."""
     # Hide the right and top spines
     ax.spines["right"].set_visible(False)
@@ -89,7 +53,7 @@ def annotate_and_decorate_axis(
     if yticks is not None:
         ax.set_yticks(yticks)
     ax.grid(True, alpha=grid_alpha)
-    ax = _decorate_axis(ax, wrect=wrect, hrect=hrect, ticklabelsize=ticklabelsize)
+    ax = decorate_axis(ax, wrect=wrect, hrect=hrect, ticklabelsize=ticklabelsize)
     if legend:
         ax.legend(fontsize=legendsize)
     return ax
@@ -102,11 +66,84 @@ def add_legend(ax, labels, colors):
         labels,
         loc="upper center",
         fancybox=True,
-        ncol=len(labels),
+        ncol=min(len(labels), 5),
         fontsize="x-large",
-        bbox_to_anchor=(0.5, 1.1),
+        bbox_to_anchor=(0.5, 1.2),
     )
     return legend
+
+
+def plot_learning_curves(
+    df: pd.DataFrame,
+    x: str,
+    y: str,
+    figsize=(7, 5),
+    xlabel="",
+    ylabel="",
+    **kwargs,
+):
+
+    fig, ax = plt.subplots(figsize=figsize)
+    ax = sns.lineplot(
+        data=df,
+        x=x,
+        y=y,
+        ax=ax,
+        **kwargs,
+    )
+    ax.set_xscale("log")
+    ax = annotate_and_decorate_axis(
+        ax,
+        xlabel=xlabel,
+        ylabel=ylabel,
+        labelsize="xx-large",
+        ticklabelsize="xx-large",
+        legend=True,
+    )
+    # ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, _: f"{x * 1e-6:.0f}"))
+    return fig, ax
+
+
+def plot_interval_estimates(
+    df: pd.DataFrame,
+    x: str,
+    y: str,
+    figwidth=3.4,
+    row_height=0.37,
+    title="",
+    xlabel="",
+    **kwargs,
+):
+    figsize = (figwidth, row_height * len(df[y].unique()))
+    fig, ax = plt.subplots(figsize=figsize)
+    ax = sns.pointplot(
+        data=df,
+        x=x,
+        y=y,
+        ax=ax,
+        **kwargs,
+    )
+    ax.set_xlabel("")
+    ax.set_ylabel("")
+    ax = decorate_axis(
+        ax,
+        ticklabelsize="xx-large",
+        wrect=5,
+    )
+    ax.set_title(title, fontsize="xx-large")
+    ax.tick_params(axis="both", which="major")
+    ax.spines["left"].set_visible(False)
+    ax.grid(True, axis="x", alpha=0.25)
+    ax.text(
+        x=0.5,
+        y=-0.2,
+        s=xlabel,
+        ha="center",
+        va="top",
+        transform=ax.transAxes,
+        fontsize="xx-large",
+    )
+    return fig, ax
 
 
 def save_fig(fig, name):

@@ -1,14 +1,16 @@
+from functools import partial
+
 import wandb
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
+from scipy.stats import trim_mean
 import ast
 
 from fanda.wandb_client import fetch_history
 from fanda.plot_utils import (
     plot_learning_curves,
     plot_interval_estimates,
-    annotate_and_decorate_axis,
     add_legend,
     save_fig,
 )
@@ -64,8 +66,25 @@ def get_networks(row):
     return torso_name
 
 
-def plot_popgym():
-    df = pd.read_parquet("data/popgym_easy.parquet")
+def load_data(difficulty):
+    try:
+        df = pd.read_parquet(f"data/popgym_{difficulty}.parquet")
+    except FileNotFoundError:
+        df = pd.read_json(f"data/popgym_{difficulty}.json")
+
+    return df
+
+
+def plot_popgym(difficulty=None):
+    if difficulty is None:
+        difficulties = ["easy", "medium", "hard"]
+        dfs = []
+        for diff in difficulties:
+            dfs.append(load_data(diff))
+        df = pd.concat(dfs, ignore_index=True)
+    else:
+        df = load_data(difficulty)
+        df = df[df["environment.env_id"].str.endswith(difficulty.capitalize())]
 
     metric = "evaluation/mmer"
 
@@ -92,8 +111,8 @@ def plot_popgym():
     df["network"] = df["network"].apply(lambda x: str(x).split(".")[-1])
     df = df.sort_values("MMER", ascending=False)
 
-    color_palette = sns.color_palette("colorblind")
     xlabels = df["network"].unique().tolist()
+    color_palette = sns.color_palette("colorblind", n_colors=len(xlabels))
     colors = dict(zip(xlabels, color_palette))
 
     fig, ax = plot_interval_estimates(
@@ -104,16 +123,17 @@ def plot_popgym():
         palette=colors,
         capsize=0.2,
         dodge=True,
-    )
-    ax = annotate_and_decorate_axis(
-        ax,
+        estimator=partial(trim_mean, proportiontocut=0.25),
+        title="IQM",
         xlabel="Normalized MMER",
-        ylabel="Memory Architecture",
-        labelsize="xx-large",
-        ticklabelsize="xx-large",
     )
-    plt.show()
-    save_fig(fig, "plots/popgym_easy")
+
+    if difficulty is None:
+        path = "plots/popgym"
+    else:
+        path = f"plots/popgym_{difficulty}"
+
+    save_fig(fig, path)
 
 
 def plot_bsuite():
@@ -132,32 +152,64 @@ def plot_bsuite():
         x="environment.env_params.memory_length",
         y="evaluation/mean_episode_returns",
         hue="network",
+        xlabel="Memory Length",
+        ylabel="IQM Episode Return",
         palette=colors,
         marker="o",
         markeredgewidth=0,
+        estimator=partial(trim_mean, proportiontocut=0.25),
         errorbar=("ci", 95),
         err_kws={"alpha": 0.2},
     )
-    ax = annotate_and_decorate_axis(
-        ax,
-        xlabel="Memory Length",
-        ylabel="Mean Episode Return",
-        labelsize="xx-large",
-        ticklabelsize="xx-large",
-        legend=True,
-    )
-    color_palette = sns.color_palette("colorblind")
-    xlabels = [xlabel.split(".")[-1] for xlabel in xlabels]
-    colors = dict(zip(xlabels, color_palette))
+
     ax = add_legend(
         ax,
         labels=xlabels,
         colors=colors,
     )
-    plt.show()
-    save_fig(fig, "plots/bsuite_memory_chain")
+
+    # save_fig(fig, "plots/bsuite_memory_chain")
+
+    lengths = [31, 63, 127, 255, 511]
+    for length in lengths:
+        fig, ax = plot_learning_curves(
+            df[df["environment.env_params.memory_length"] == length],
+            x="_step",
+            y="evaluation/mean_episode_returns",
+            hue="network",
+            xlabel="Number of Frames (in millions)",
+            ylabel="IQM Episode Return",
+            palette=colors,
+            estimator=partial(trim_mean, proportiontocut=0.25),
+            errorbar=("ci", 95),
+            err_kws={"alpha": 0.2},
+        )
+        ax = add_legend(
+            ax,
+            labels=xlabels,
+            colors=colors,
+        )
+        save_fig(fig, f"plots/bsuite_memory_chain_{length}_step")
+
+
+def get_data():
+    api = wandb.Api()
+    df = fetch_history(
+        api,
+        "noahfarr",
+        "benchmarks",
+        filters={
+            "config.environment.env_id": {"$regex": "Hard"},
+            "state": "finished",
+        },
+    )
+    df.to_json("data/popgym_hard.json")
 
 
 if __name__ == "__main__":
-    plot_popgym()
-    # plot_bsuite()
+    # get_data()
+    # plot_popgym("easy")
+    # plot_popgym("medium")
+    # plot_popgym("hard")
+    # plot_popgym()
+    plot_bsuite()
