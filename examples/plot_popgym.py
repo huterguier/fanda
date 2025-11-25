@@ -7,7 +7,7 @@ from scipy.stats import trim_mean
 
 from fanda.wandb_client import fetch_wandb
 from fanda import transforms
-from fanda.visualizations import pointplot, add_legend, save_fig
+from fanda.visualizations import annotate_axis, decorate_axis, pointplot, add_legend, save_fig
 
 DIFFICULTIES = ["Medium", "Hard"]
 
@@ -65,21 +65,6 @@ def get_networks(df):
     df["network"] = df.apply(func, axis=1)
     return df
 
-def restore_seeds(df):
-    df["seed"] = df.groupby(["network", "environment.env_id", "_step"]).cumcount()
-    return df
-
-def accumulate_popgym(df):
-    df = (
-        df.groupby(["network", "seed", "_step"])["evaluation/mmer"]
-        .mean()
-        .reset_index()
-        .groupby(["network", "seed"])["evaluation/mmer"]
-        .max()
-        .reset_index()
-    )
-    return df
-
 def main(difficulty):
     (
         fetch_wandb("noahfarr", "benchmarks", filters={
@@ -89,25 +74,24 @@ def main(difficulty):
         })
         .pipe(get_networks)
         .pipe(filter_runs)
-        .pipe(restore_seeds)
+        .pipe(lambda df: df.groupby(["network", "environment.env_id", "_step"]).cumcount())
         .pipe(transforms.normalize, column="evaluation/mmer", groupby=["environment.env_id"])
-        .pipe(transforms.remove_outliers, column="evaluation/mmer")
-        .pipe(accumulate_popgym)
+        .pipe(lambda df: df.groupby(["network", "seed", "_step"])["evaluation/mmer"].mean().reset_index())
+        .pipe(lambda df: df.groupby(["network", "seed"])["evaluation/mmer"].max().reset_index())
         .sort_values("evaluation/mmer", ascending=False)
         .pipe( 
             pointplot, 
             x="evaluation/mmer", 
             y="network", 
             hue="network",
-            title="IQM",
-            xlabel="Normalized MMER",
             palette="colorblind",
             capsize=0.2,
             dodge=True,
             estimator=partial(trim_mean, proportiontocut=0.25),
         )
-        .pipe(add_legend, column="network")
-        .pipe(save_fig, name="plots/bsuite_memory_chain_piped")
+        .pipe(annotate_axis, xlabel="Normalized MMER", title="IQM", grid_alpha=0.25)
+        .pipe(decorate_axis, ticklabelsize="xx-large", wrect=5, spines=["bottom"])
+        .pipe(save_fig, name=f"plots/popgym_{difficulty.lower()}")
 
     )
 

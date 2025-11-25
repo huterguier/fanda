@@ -7,7 +7,7 @@ from scipy.stats import trim_mean
 
 from fanda.wandb_client import fetch_wandb
 from fanda import transforms
-from fanda.visualizations import lineplot, add_legend, save_fig
+from fanda.visualizations import annotate_axis, decorate_axis, lineplot, add_legend, save_fig
 
 def filter_runs(df: pd.DataFrame) -> pd.DataFrame:
     latest_timestamps = (
@@ -73,15 +73,11 @@ def main():
         })
         .pipe(get_networks)
         .pipe(filter_runs)
-        .pipe(transforms.exponential_moving_average, column="evaluation/mean_episode_returns", alpha=0.7)
-        .pipe(transforms.remove_outliers, column="evaluation/mean_episode_returns")
         .pipe( 
             lineplot, 
             x="environment.env_params.memory_length", 
             y="evaluation/mean_episode_returns", 
             hue="network",
-            xlabel="Memory Length",
-            ylabel="IQM Episode Return",
             palette="colorblind",
             marker="o",
             markeredgewidth=0,
@@ -89,8 +85,15 @@ def main():
             errorbar=("ci", 95),
             err_kws={"alpha": 0.2},
         )
+        .pipe(
+            annotate_axis, 
+            xlabel="Memory Length",
+            ylabel="IQM Episode Return",
+            labelsize="xx-large",
+        )
+        .pipe(decorate_axis, ticklabelsize="xx-large")
         .pipe(add_legend, column="network")
-        .pipe(save_fig, name="plots/bsuite_memory_chain_piped")
+        .pipe(save_fig, name="plots/bsuite_memory_chain")
     )
 
 
