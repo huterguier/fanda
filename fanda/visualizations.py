@@ -103,49 +103,10 @@ def lineplot(
         ticklabelsize="xx-large",
         legend=True,
     )
-    return df, fig, ax
+    df.attrs["fig"] = fig
+    df.attrs["ax"] = ax
+    return df
 
-
-def plot_interval_estimates(
-    df: pd.DataFrame,
-    x: str,
-    y: str,
-    figwidth=3.4,
-    row_height=0.37,
-    title="",
-    xlabel="",
-    **kwargs,
-):
-    figsize = (figwidth, row_height * len(df[y].unique()))
-    fig, ax = plt.subplots(figsize=figsize)
-    ax = sns.pointplot(
-        data=df,
-        x=x,
-        y=y,
-        ax=ax,
-        **kwargs,
-    )
-    ax.set_xlabel("")
-    ax.set_ylabel("")
-    ax = decorate_axis(
-        ax,
-        ticklabelsize="xx-large",
-        wrect=5,
-    )
-    ax.set_title(title, fontsize="xx-large")
-    ax.tick_params(axis="both", which="major")
-    ax.spines["left"].set_visible(False)
-    ax.grid(True, axis="x", alpha=0.25)
-    ax.text(
-        x=0.5,
-        y=-0.25,
-        s=xlabel,
-        ha="center",
-        va="top",
-        transform=ax.transAxes,
-        fontsize="xx-large",
-    )
-    return fig, ax
 
 def pointplot(
     df: pd.DataFrame,
@@ -186,10 +147,28 @@ def pointplot(
         transform=ax.transAxes,
         fontsize="xx-large",
     )
-    return df, fig, ax
+    df.attrs["fig"] = fig
+    df.attrs["ax"] = ax
+    return df
 
-def save_fig(fig, name):
+def add_legend(df, column):
+    labels = df[column].unique()
+    colors = sns.color_palette("colorblind", len(labels))
+    colors = dict(zip(labels, colors))
+    fake_patches = [mpatches.Patch(color=colors[label], alpha=0.75) for label in labels]
+    df.attrs["ax"].legend(
+        fake_patches,
+        labels,
+        loc="upper center",
+        fancybox=True,
+        ncol=min(len(labels), 5),
+        fontsize="x-large",
+        bbox_to_anchor=(0.5, 1.2),
+    )
+    return df
+
+def save_fig(df, name):
     file_name = "{}.pdf".format(name)
-    fig.savefig(file_name, format="pdf", bbox_inches="tight")
-    return file_name
+    df.attrs["fig"].savefig(file_name, format="pdf", bbox_inches="tight")
+    return df
 

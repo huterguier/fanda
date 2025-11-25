@@ -5,12 +5,9 @@ import pandas as pd
 import seaborn as sns
 from scipy.stats import trim_mean
 
-from fanda.plot_utils import (
-    save_fig,
-)
 from fanda.wandb_client import fetch_wandb
 from fanda import transforms
-from fanda.visualizations import pointplot
+from fanda.visualizations import pointplot, add_legend, save_fig
 
 DIFFICULTIES = ["Medium", "Hard"]
 
@@ -84,7 +81,7 @@ def accumulate_popgym(df):
     return df
 
 def main(difficulty):
-    df, fig, ax = (
+    (
         fetch_wandb("noahfarr", "benchmarks", filters={
             "config.environment.env_id": {"$regex": difficulty},
             "state": "finished",
@@ -109,12 +106,10 @@ def main(difficulty):
             dodge=True,
             estimator=partial(trim_mean, proportiontocut=0.25),
         )
-    )
+        .pipe(add_legend, column="network")
+        .pipe(save_fig, name="plots/bsuite_memory_chain_piped")
 
-    xlabels = df["network"].unique()
-    colors = sns.color_palette("colorblind", len(xlabels))
-    colors = dict(zip(xlabels, colors))
-    save_fig(fig, f"plots/popgym_{difficulty.lower()}_piped")
+    )
 
 if __name__ == "__main__":
     for difficulty in DIFFICULTIES:

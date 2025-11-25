@@ -1,5 +1,5 @@
 def exponential_moving_average(df, column, alpha=1.0, groupby="run_id"):
-    df[column] = df.groupby(groupby)[column].ewm(alpha=alpha).mean()
+    df[column] = df.groupby(groupby)[column].transform(lambda x: x.ewm(alpha=alpha).mean())
     return df
 
 def remove_outliers(df, column, lower_quantile=0.01, upper_quantile=0.99, groupby="run_id"):

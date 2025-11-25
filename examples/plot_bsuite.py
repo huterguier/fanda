@@ -5,13 +5,9 @@ import pandas as pd
 import seaborn as sns
 from scipy.stats import trim_mean
 
-from fanda.plot_utils import (
-    add_legend,
-    save_fig,
-)
 from fanda.wandb_client import fetch_wandb
 from fanda import transforms
-from fanda.visualizations import lineplot
+from fanda.visualizations import lineplot, add_legend, save_fig
 
 def filter_runs(df: pd.DataFrame) -> pd.DataFrame:
     latest_timestamps = (
@@ -69,7 +65,7 @@ def get_networks(df):
 
 
 def main():
-    df, fig, ax = (
+    (
         fetch_wandb("noahfarr", "benchmarks", filters={
             "config.environment.env_id": "MemoryChain-bsuite",
             "state": "finished",
@@ -77,6 +73,7 @@ def main():
         })
         .pipe(get_networks)
         .pipe(filter_runs)
+        .pipe(transforms.exponential_moving_average, column="evaluation/mean_episode_returns", alpha=0.7)
         .pipe(transforms.remove_outliers, column="evaluation/mean_episode_returns")
         .pipe( 
             lineplot, 
@@ -92,17 +89,10 @@ def main():
             errorbar=("ci", 95),
             err_kws={"alpha": 0.2},
         )
+        .pipe(add_legend, column="network")
+        .pipe(save_fig, name="plots/bsuite_memory_chain_piped")
     )
 
-    xlabels = df["network"].unique()
-    colors = sns.color_palette("colorblind", len(xlabels))
-    colors = dict(zip(xlabels, colors))
-    ax = add_legend(
-        ax,
-        labels=xlabels,
-        colors=colors,
-    )
-    save_fig(fig, "plots/bsuite_memory_chain_piped")
 
 if __name__ == "__main__":
     main()
