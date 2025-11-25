@@ -5,6 +5,7 @@ description = "Figures and Axes"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "joblib>=1.5.2",
     "pandas>=2.3.3",
     "pyarrow>=22.0.0",
     "rich>=14.2.0",

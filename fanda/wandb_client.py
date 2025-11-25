@@ -2,33 +2,37 @@ from typing import Optional
 import wandb
 import pandas as pd
 from tqdm.rich import tqdm
+from joblib import Memory
 
+memory = Memory("./.fanda.cache", verbose=0)
 
-def fetch_history(
-    api: wandb.Api,
+@memory.cache
+def fetch_wandb(
     entity: str,
     project: str,
     keys: Optional[list[str]] = None,
     filters: Optional[dict] = None,
     samples: int = 500,
 ) -> pd.DataFrame:
+    api = wandb.Api()
     runs = api.runs(f"{entity}/{project}", filters=filters)
 
-    histories = []
+    histories = pd.DataFrame()
     for run in tqdm(runs):
-        history_data = run.history(
+        df = run.history(
             samples=samples,
             keys=keys,
-            pandas=False,
+            pandas=True,
         )
-        if not history_data:
+        if df.empty:
             continue
-        df = pd.DataFrame.from_records(history_data)
+
         df["run_id"] = run.id
-        histories.append(df)
-    histories = pd.concat(histories)
-    histories.reset_index(drop=True, inplace=True)
-    histories = histories[(sorted(histories.columns))]
+
+        histories = pd.concat([histories, df], ignore_index=True)
+
+    if histories.empty:
+        raise ValueError("No histories found")
 
     configs = pd.json_normalize(
         [

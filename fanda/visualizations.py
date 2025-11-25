@@ -11,6 +11,9 @@ sns.set_style("white")
 rcParams["legend.loc"] = "best"
 rcParams["pdf.fonttype"] = 42
 rcParams["ps.fonttype"] = 42
+plt.rcParams["font.family"] = "serif"
+plt.rcParams["font.serif"] = ["Times New Roman", "Times", "serif"]
+plt.rcParams["mathtext.fontset"] = "stix"
 
 rc("text", usetex=False)
 
@@ -73,7 +76,7 @@ def add_legend(ax, labels, colors):
     return legend
 
 
-def plot_learning_curves(
+def lineplot(
     df: pd.DataFrame,
     x: str,
     y: str,
@@ -91,7 +94,7 @@ def plot_learning_curves(
         ax=ax,
         **kwargs,
     )
-    ax.set_xscale("log")
+
     ax = annotate_and_decorate_axis(
         ax,
         xlabel=xlabel,
@@ -100,8 +103,7 @@ def plot_learning_curves(
         ticklabelsize="xx-large",
         legend=True,
     )
-    # ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, _: f"{x * 1e-6:.0f}"))
-    return fig, ax
+    return df, fig, ax
 
 
 def plot_interval_estimates(
@@ -136,7 +138,7 @@ def plot_interval_estimates(
     ax.grid(True, axis="x", alpha=0.25)
     ax.text(
         x=0.5,
-        y=-0.2,
+        y=-0.25,
         s=xlabel,
         ha="center",
         va="top",
@@ -145,8 +147,49 @@ def plot_interval_estimates(
     )
     return fig, ax
 
+def pointplot(
+    df: pd.DataFrame,
+    x: str,
+    y: str,
+    figwidth=3.4,
+    row_height=0.37,
+    title="",
+    xlabel="",
+    **kwargs,
+):
+    figsize = (figwidth, row_height * len(df[y].unique()))
+    fig, ax = plt.subplots(figsize=figsize)
+    ax = sns.pointplot(
+        data=df,
+        x=x,
+        y=y,
+        ax=ax,
+        **kwargs,
+    )
+    ax.set_xlabel("")
+    ax.set_ylabel("")
+    ax = decorate_axis(
+        ax,
+        ticklabelsize="xx-large",
+        wrect=5,
+    )
+    ax.set_title(title, fontsize="xx-large")
+    ax.tick_params(axis="both", which="major")
+    ax.spines["left"].set_visible(False)
+    ax.grid(True, axis="x", alpha=0.25)
+    ax.text(
+        x=0.5,
+        y=-0.25,
+        s=xlabel,
+        ha="center",
+        va="top",
+        transform=ax.transAxes,
+        fontsize="xx-large",
+    )
+    return df, fig, ax
 
 def save_fig(fig, name):
     file_name = "{}.pdf".format(name)
     fig.savefig(file_name, format="pdf", bbox_inches="tight")
     return file_name
+
