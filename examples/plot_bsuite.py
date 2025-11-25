@@ -2,7 +2,7 @@ from functools import partial
 
 import ast
 import pandas as pd
-import seaborn as sns
+from matplotlib import ticker
 from scipy.stats import trim_mean
 
 from fanda.wandb_client import fetch_wandb
@@ -63,9 +63,17 @@ def get_networks(df):
     df["network"] = df.apply(func, axis=1)
     return df
 
+def set_major_formatter(df):
+    df.attrs["ax"].xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, p: f"{x / 1e6:.0f}"))
+    return df
+
+def make_log_axis(df):
+    df.attrs["ax"].set_xscale("log")
+    return df
 
 def main():
-    (
+    print("Fetching bsuite Memory Chain runs and preparing data")
+    df = (
         fetch_wandb("noahfarr", "benchmarks", filters={
             "config.environment.env_id": "MemoryChain-bsuite",
             "state": "finished",
@@ -73,7 +81,10 @@ def main():
         })
         .pipe(get_networks)
         .pipe(filter_runs)
-        .pipe( 
+    )
+    print("Plotting bsuite Memory Chain")
+    (
+        df.pipe( 
             lineplot, 
             x="environment.env_params.memory_length", 
             y="evaluation/mean_episode_returns", 
@@ -93,8 +104,63 @@ def main():
         )
         .pipe(decorate_axis, ticklabelsize="xx-large")
         .pipe(add_legend, column="network")
-        .pipe(save_fig, name="plots/bsuite_memory_chain")
+        .pipe(save_fig, name="plots/bsuite/memory_chain")
     )
+    for length in [31, 63, 127, 255, 511]:
+        print("Plotting bsuite Memory Chain with length: ", length)
+        (
+            df[
+            df["environment.env_params.memory_length"] == length
+        ]
+            .pipe(transforms.remove_outliers, column="evaluation/mean_episode_returns")
+            .pipe( 
+                lineplot, 
+                x="_step", 
+                y="evaluation/mean_episode_returns", 
+                hue="network",
+                palette="colorblind",
+                estimator=partial(trim_mean, proportiontocut=0.25),
+                errorbar=("ci", 95),
+                err_kws={"alpha": 0.2},
+            )
+            .pipe(
+                annotate_axis, 
+                xlabel="Number of Frames (in millions)",
+                ylabel="IQM Episode Return",
+                labelsize="xx-large",
+            )
+            .pipe(decorate_axis, ticklabelsize="xx-large")
+            .pipe(set_major_formatter)
+            .pipe(add_legend, column="network")
+            .pipe(save_fig, name=f"plots/bsuite/memory_chain_{length}_step")
+        )
+        (
+            df[
+            df["environment.env_params.memory_length"] == length
+        ]
+            .pipe(transforms.align_column, column="FLOPS", groupby="network")
+            .pipe(transforms.remove_outliers, column="evaluation/mean_episode_returns")
+            .pipe( 
+                lineplot, 
+                x="FLOPS", 
+                y="evaluation/mean_episode_returns", 
+                hue="network",
+                palette="colorblind",
+                estimator=partial(trim_mean, proportiontocut=0.25),
+                errorbar=("ci", 95),
+                err_kws={"alpha": 0.2},
+            )
+            .pipe(
+                annotate_axis, 
+                xlabel="Number of FLOPS",
+                ylabel="IQM Episode Return",
+                labelsize="xx-large",
+            )
+            .pipe(decorate_axis, ticklabelsize="xx-large")
+            .pipe(make_log_axis)
+            .pipe(add_legend, column="network")
+            .pipe(save_fig, name=f"plots/bsuite/memory_chain_{length}_flops")
+        )
 
 
 if __name__ == "__main__":

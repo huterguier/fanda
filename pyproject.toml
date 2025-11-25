@@ -3,7 +3,7 @@ packages = ["fanda"]
 
 [project]
 name = "fanda"
-version = "0.1.0"
+version = "0.2.1"
 description = "Figures and Axes"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -16,3 +16,6 @@ dependencies = [
     "tqdm>=4.67.1",
     "wandb>=0.23.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/noahfarr/fanda"

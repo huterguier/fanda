@@ -15,7 +15,12 @@ def normalize(df, column, groupby="run_id"):
     df[column] = df.groupby(groupby)[column].transform(lambda x: (x - x.min()) / (x.max() - x.min()))
     return df
 
-def downsample(df, column, n, groupby="run_id"):
+def downsample(df, n, column="_step", groupby="run_id"):
     df = df.sort_values(by=[groupby, column])
     df = df.groupby(groupby).nth(slice(None, None, n))
+    return df
+
+def align_column(df, column, groupby, transformation="mean"):
+    df = df.copy()
+    df[column] = df.groupby([groupby, "_step"])[column].transform(transformation)
     return df
