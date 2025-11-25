@@ -10,10 +10,12 @@ Figures and Axes (fanda) is a lightweight Python library designed to streamline 
 
 ## Installation
 You can install fanda directly from the PyPi:
+
 `pip install fanda`
 
 ## Configuration
 Ensure you are logged into W&B before using the library:
+
 `wandb login`
 
 ## Usage
@@ -57,3 +59,4 @@ If you find this tool useful for your research, please consider citing it:
   url = {https://github.com/noahfarr/fanda},
 }
 ```
+
