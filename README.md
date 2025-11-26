@@ -9,7 +9,7 @@ Figures and Axes (fanda) is a lightweight Python library designed to streamline 
 - DataFrame Integration: Convert W&B run histories directly into Pandas DataFrames for custom analysis.
 
 ## Installation
-You can install fanda directly from the PyPi:
+You can install fanda directly from PyPi:
 ```bash
 pip install fanda
 ```
@@ -66,6 +66,7 @@ If you find this tool useful for your research, please consider citing it:
   url = {https://github.com/noahfarr/fanda},
 }
 ```
+
 
 
 
