@@ -8,7 +8,7 @@ Figures and Axes (fanda) is a lightweight Python library designed to streamline 
 - Filtering: Easily select runs based on tags, groups, or specific configuration hyperparameters.
 - DataFrame Integration: Convert W&B run histories directly into Pandas DataFrames for custom analysis.
 
-- <p align="center">
+<p align="center">
   <img src="images/sin_cos.png" alt="Example of sin and cosine">
 </p>
 
@@ -72,6 +72,7 @@ If you find this tool useful for your research, please consider citing it:
   url = {https://github.com/noahfarr/fanda},
 }
 ```
+
 
 
 
