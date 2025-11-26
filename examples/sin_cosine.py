@@ -47,6 +47,6 @@ fanda = (
     .pipe(decorate_axis, ticklabelsize="xx-large")
     .pipe(add_legend, labels=["sin(x)", "cos(x)"], fontsize="xx-large")
     # .pipe(show_fig)
-    .pipe(save_fig, name="cartpole")
+    .pipe(save_fig, name="images/sin_cosine")
     .pipe(close_fig)
 )
