@@ -7,7 +7,10 @@ from scipy.stats import trim_mean
 
 from fanda.wandb_client import fetch_wandb
 from fanda import transforms
-from fanda.visualizations import annotate_axis, decorate_axis, lineplot, add_legend, save_fig
+from fanda.visualizations import annotate_axis, decorate_axis, lineplot, add_legend
+from fanda.utils import save_fig, close_fig
+
+ENV_IDS = ["MemoryChain-bsuite", "UmbrellaChain-bsuite"]
 
 def filter_runs(df: pd.DataFrame) -> pd.DataFrame:
     latest_timestamps = (
@@ -63,30 +66,24 @@ def get_networks(df):
     df["network"] = df.apply(func, axis=1)
     return df
 
-def set_major_formatter(df):
-    df.attrs["ax"].xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, p: f"{x / 1e6:.0f}"))
-    return df
+def make_log_axis(fanda, **kwargs):
+    fanda.ax.set_xscale("log", **kwargs)
+    return fanda
 
-def make_log_axis(df):
-    df.attrs["ax"].set_xscale("log")
-    return df
+def plot_chain_length(df):
 
-def main():
-    print("Fetching bsuite Memory Chain runs and preparing data")
-    df = (
-        fetch_wandb("noahfarr", "benchmarks", filters={
-            "config.environment.env_id": "MemoryChain-bsuite",
-            "state": "finished",
-            "created_at": {"$gte": "2025-11-11"},
-        })
-        .pipe(get_networks)
-        .pipe(filter_runs)
-    )
-    print("Plotting bsuite Memory Chain")
+    def set_major_formatter(fanda):
+        formatter = ticker.ScalarFormatter()
+        formatter.set_scientific(False)
+        fanda.ax.xaxis.set_major_formatter(formatter)
+        fanda.ax.xaxis.set_minor_formatter(formatter)
+        return fanda
+
+    labels = df["network"].unique()
     (
-        df.pipe( 
-            lineplot, 
-            x="environment.env_params.memory_length", 
+        lineplot(
+            df=df[df["environment.env_params.max_steps_in_episode"] >= 4],
+            x="environment.env_params.max_steps_in_episode", 
             y="evaluation/mean_episode_returns", 
             hue="network",
             palette="colorblind",
@@ -98,50 +95,61 @@ def main():
         )
         .pipe(
             annotate_axis, 
-            xlabel="Memory Length",
+            xlabel="Chain Length",
             ylabel="IQM Episode Return",
             labelsize="xx-large",
         )
         .pipe(decorate_axis, ticklabelsize="xx-large")
-        .pipe(add_legend, column="network")
-        .pipe(save_fig, name="plots/bsuite/memory_chain")
+        .pipe(make_log_axis, base=2)
+        .pipe(set_major_formatter)
+        .pipe(add_legend, labels=labels)
+        .pipe(save_fig, name=f"plots/bsuite/{env_id}")
+        .pipe(close_fig)
     )
-    for length in [31, 63, 127, 255, 511]:
-        print("Plotting bsuite Memory Chain with length: ", length)
-        (
-            df[
-            df["environment.env_params.memory_length"] == length
-        ]
-            .pipe(transforms.remove_outliers, column="evaluation/mean_episode_returns")
-            .pipe( 
-                lineplot, 
-                x="_step", 
-                y="evaluation/mean_episode_returns", 
-                hue="network",
-                palette="colorblind",
-                estimator=partial(trim_mean, proportiontocut=0.25),
-                errorbar=("ci", 95),
-                err_kws={"alpha": 0.2},
-            )
-            .pipe(
-                annotate_axis, 
-                xlabel="Number of Frames (in millions)",
-                ylabel="IQM Episode Return",
-                labelsize="xx-large",
-            )
-            .pipe(decorate_axis, ticklabelsize="xx-large")
-            .pipe(set_major_formatter)
-            .pipe(add_legend, column="network")
-            .pipe(save_fig, name=f"plots/bsuite/memory_chain_{length}_step")
+
+def plot_steps(df, length):
+
+    def set_major_formatter(fanda):
+        formatter = ticker.FuncFormatter(lambda x, p: f"{x / 1e6:.0f}")
+        fanda.ax.xaxis.set_major_formatter(formatter)
+        fanda.ax.xaxis.set_minor_formatter(formatter)
+        return fanda
+
+    labels = df["network"].unique()
+    (
+        lineplot(
+            df[df["environment.env_params.max_steps_in_episode"] == length],
+            x="_step", 
+            y="evaluation/mean_episode_returns", 
+            hue="network",
+            palette="colorblind",
+            estimator=partial(trim_mean, proportiontocut=0.25),
+            errorbar=("ci", 95),
+            err_kws={"alpha": 0.2},
         )
-        (
-            df[
-            df["environment.env_params.memory_length"] == length
-        ]
-            .pipe(transforms.align_column, column="FLOPS", groupby="network")
-            .pipe(transforms.remove_outliers, column="evaluation/mean_episode_returns")
-            .pipe( 
-                lineplot, 
+        .pipe(
+            annotate_axis, 
+            xlabel="Number of Frames (in millions)",
+            ylabel="IQM Episode Return",
+            labelsize="xx-large",
+        )
+        .pipe(decorate_axis, ticklabelsize="xx-large")
+        .pipe(set_major_formatter)
+        .pipe(add_legend, labels=labels)
+        .pipe(save_fig, name=f"plots/bsuite/{env_id}/steps/{length}")
+        .pipe(close_fig)
+    )
+
+def plot_flops(df, length):
+    labels = df["network"].unique()
+    df = (
+        df[df["environment.env_params.max_steps_in_episode"] == length]
+        .pipe(transforms.align_column, column="FLOPS", groupby="network")
+        .pipe(transforms.remove_outliers, column="evaluation/mean_episode_returns")
+    )
+    (
+        lineplot(
+                df=df,
                 x="FLOPS", 
                 y="evaluation/mean_episode_returns", 
                 hue="network",
@@ -149,20 +157,37 @@ def main():
                 estimator=partial(trim_mean, proportiontocut=0.25),
                 errorbar=("ci", 95),
                 err_kws={"alpha": 0.2},
-            )
-            .pipe(
-                annotate_axis, 
-                xlabel="Number of FLOPS",
-                ylabel="IQM Episode Return",
-                labelsize="xx-large",
-            )
-            .pipe(decorate_axis, ticklabelsize="xx-large")
-            .pipe(make_log_axis)
-            .pipe(add_legend, column="network")
-            .pipe(save_fig, name=f"plots/bsuite/memory_chain_{length}_flops")
         )
+        .pipe(
+            annotate_axis, 
+            xlabel="Number of FLOPS",
+            ylabel="IQM Episode Return",
+            labelsize="xx-large",
+        )
+        .pipe(decorate_axis, ticklabelsize="xx-large")
+        .pipe(make_log_axis)
+        .pipe(add_legend, labels=labels)
+        .pipe(save_fig, name=f"plots/bsuite/{env_id}/flops/{length}")
+        .pipe(close_fig)
+    )
+
+
+def main(env_id):
+    df = (
+        fetch_wandb("noahfarr", "memorax", filters={
+            "config.environment.env_id": env_id,
+            "state": "finished",
+        })
+        .pipe(get_networks)
+        .pipe(filter_runs)
+    )
+    plot_chain_length(df.copy())
+    for length in [2, 4, 8, 16, 32, 64, 128, 256, 512]:
+        plot_steps(df.copy(), length)
+        plot_flops(df.copy(), length)
 
 
 if __name__ == "__main__":
-    main()
+    for env_id in ENV_IDS:
+        main(env_id)
 

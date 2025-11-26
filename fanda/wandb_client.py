@@ -47,5 +47,5 @@ def fetch_wandb(
     )
 
     df = pd.merge(histories, configs, on="run_id", how="left")
-
     return df
+

@@ -9,7 +9,7 @@ from fanda.wandb_client import fetch_wandb
 from fanda import transforms
 from fanda.visualizations import annotate_axis, decorate_axis, pointplot, add_legend, save_fig
 
-DIFFICULTIES = ["Medium", "Hard"]
+DIFFICULTIES = ["Easy", "Medium", "Hard"]
 
 def filter_runs(df: pd.DataFrame) -> pd.DataFrame:
     latest_timestamps = (
@@ -69,13 +69,11 @@ def restore_seeds(df):
     df["seed"] = df.groupby(["network", "environment.env_id", "_step"]).cumcount()
     return df
 
-
 def main(difficulty):
-    (
-        fetch_wandb("noahfarr", "benchmarks", filters={
-            "config.environment.env_id": {"$regex": difficulty},
-            "state": "finished",
-            "created_at": {"$gte": "2025-11-11"},
+    df = (
+        fetch_wandb("noahfarr", "memorax", filters={
+        "config.environment.env_id": {"$regex": difficulty},
+        "state": "finished",
         })
         .pipe(get_networks)
         .pipe(filter_runs)
@@ -84,8 +82,10 @@ def main(difficulty):
         .pipe(lambda df: df.groupby(["network", "seed", "_step"])["evaluation/mmer"].mean().reset_index())
         .pipe(lambda df: df.groupby(["network", "seed"])["evaluation/mmer"].max().reset_index())
         .sort_values("evaluation/mmer", ascending=False)
-        .pipe( 
-            pointplot, 
+    )
+    (
+        pointplot(
+            df=df,
             x="evaluation/mmer", 
             y="network", 
             hue="network",
@@ -96,11 +96,13 @@ def main(difficulty):
         )
         .pipe(annotate_axis, xlabel="Normalized MMER", title="IQM", grid_alpha=0.25)
         .pipe(decorate_axis, ticklabelsize="xx-large", wrect=5, spines=["bottom"])
-        .pipe(save_fig, name=f"plots/popgym_{difficulty.lower()}")
-
+        .pipe(save_fig, name=f"plots/popgym/popgym_{difficulty.lower()}")
     )
 
 if __name__ == "__main__":
     for difficulty in DIFFICULTIES:
-        main(difficulty)
+        try:
+            main(difficulty)
+        except:
+            print(f"Failed for {difficulty}")
 
