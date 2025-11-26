@@ -11,35 +11,6 @@ from fanda.visualizations import annotate_axis, decorate_axis, pointplot, add_le
 
 DIFFICULTIES = ["Easy", "Medium", "Hard"]
 
-def filter_runs(df: pd.DataFrame) -> pd.DataFrame:
-    latest_timestamps = (
-        (
-            df.groupby(
-                [
-                    "network",
-                    "environment.env_id",
-                    "seed",
-                    "group",
-                ]
-            )["_timestamp"]
-            .max()
-            .reset_index()
-        )
-        .sort_values("_timestamp", ascending=False)
-        .drop_duplicates(
-            subset=[
-                "network",
-                "environment.env_id",
-                "seed",
-            ],
-            keep="first",
-        )
-    )
-
-    df = df[df["group"].isin(latest_timestamps["group"].unique())].copy()
-    return df
-
-
 def get_networks(df):
 
     def func(row):
@@ -76,7 +47,6 @@ def main(difficulty):
         "state": "finished",
         })
         .pipe(get_networks)
-        .pipe(filter_runs)
         .pipe(restore_seeds)
         .pipe(transforms.normalize, column="evaluation/mmer", groupby=["environment.env_id"])
         .pipe(lambda df: df.groupby(["network", "seed", "_step"])["evaluation/mmer"].mean().reset_index())
