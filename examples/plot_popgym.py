@@ -47,7 +47,6 @@ def main(difficulty):
         "state": "finished",
         })
         .pipe(get_networks)
-        .pipe(restore_seeds)
         .pipe(transforms.normalize, column="evaluation/mmer", groupby=["environment.env_id"])
         .pipe(lambda df: df.groupby(["network", "seed", "_step"])["evaluation/mmer"].mean().reset_index())
         .pipe(lambda df: df.groupby(["network", "seed"])["evaluation/mmer"].max().reset_index())
